@@ -16,6 +16,9 @@ ui/dist/
 celery_bloom/static/*
 !celery_bloom/static/.gitkeep
 
+# Celery beat schedule (runtime artifact)
+celerybeat-schedule
+
 # IDE
 .vscode/
 .idea/
