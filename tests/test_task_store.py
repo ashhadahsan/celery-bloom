@@ -32,7 +32,11 @@ class TestTaskStoreUpdate:
     def test_failure_records_traceback(self):
         store = TaskStore()
         store.update(make_event("t1", "task-received", name="myapp.flaky"))
-        store.update(make_event("t1", "task-failed", exception="ValueError('oops')", traceback="Traceback..."))
+        store.update(
+            make_event(
+                "t1", "task-failed", exception="ValueError('oops')", traceback="Traceback..."
+            )
+        )
         rec = store.get("t1")
         assert rec is not None
         assert rec.state == "FAILURE"
@@ -61,7 +65,11 @@ class TestTaskStoreUpdate:
     def test_tracks_parentage_in_children_index(self):
         store = TaskStore()
         store.update(make_event("parent", "task-received", name="myapp.root"))
-        store.update(make_event("child", "task-received", name="myapp.next", parent_id="parent", root_id="parent"))
+        store.update(
+            make_event(
+                "child", "task-received", name="myapp.next", parent_id="parent", root_id="parent"
+            )
+        )
         assert "child" in store._children["parent"]
 
     def test_tracks_group_membership(self):
@@ -144,8 +152,16 @@ class TestTaskGraph:
 
     def test_chain_graph_edges(self):
         self.store.update(make_event("root", "task-received", name="myapp.step1"))
-        self.store.update(make_event("child", "task-received", name="myapp.step2", parent_id="root", root_id="root"))
-        self.store.update(make_event("grandchild", "task-received", name="myapp.step3", parent_id="child", root_id="root"))
+        self.store.update(
+            make_event(
+                "child", "task-received", name="myapp.step2", parent_id="root", root_id="root"
+            )
+        )
+        self.store.update(
+            make_event(
+                "grandchild", "task-received", name="myapp.step3", parent_id="child", root_id="root"
+            )
+        )
 
         graph = self.store.get_graph("grandchild")
         assert graph is not None
@@ -157,8 +173,12 @@ class TestTaskGraph:
 
     def test_find_root_walks_to_top(self):
         self.store.update(make_event("r", "task-received", name="myapp.a"))
-        self.store.update(make_event("m", "task-received", name="myapp.b", parent_id="r", root_id="r"))
-        self.store.update(make_event("l", "task-received", name="myapp.c", parent_id="m", root_id="r"))
+        self.store.update(
+            make_event("m", "task-received", name="myapp.b", parent_id="r", root_id="r")
+        )
+        self.store.update(
+            make_event("l", "task-received", name="myapp.c", parent_id="m", root_id="r")
+        )
         assert self.store._find_root("l") == "r"
 
     def test_record_as_dict(self):
@@ -168,3 +188,61 @@ class TestTaskGraph:
         d = rec.as_dict()
         assert d["uuid"] == "t1"
         assert "state" in d
+
+    def test_hostname_args_kwargs_recorded(self):
+        store = TaskStore()
+        store.update(
+            make_event(
+                "t1",
+                "task-received",
+                name="myapp.add",
+                hostname="celery@worker1",
+                args="[1, 2]",
+                kwargs="{'x': 3}",
+            )
+        )
+        rec = store.get("t1")
+        assert rec is not None
+        assert rec.worker == "celery@worker1"
+        assert rec.args == "[1, 2]"
+        assert rec.kwargs == "{'x': 3}"
+
+    def test_group_siblings_included_in_graph(self):
+        store = TaskStore()
+        # Three tasks in the same group, no chain parent
+        store.update(make_event("g1", "task-received", name="myapp.work", group="grp"))
+        store.update(make_event("g2", "task-received", name="myapp.work", group="grp"))
+        store.update(make_event("g3", "task-received", name="myapp.work", group="grp"))
+        graph = store.get_graph("g1")
+        assert graph is not None
+        uuids = {n["uuid"] for n in graph["nodes"]}
+        assert uuids == {"g1", "g2", "g3"}
+
+    def test_bfs_handles_already_visited_node(self):
+        store = TaskStore()
+        # Diamond: root -> a -> leaf, root -> b -> leaf (leaf has two parents via group)
+        store.update(make_event("root", "task-received", name="myapp.root"))
+        store.update(
+            make_event("a", "task-received", name="myapp.a", parent_id="root", root_id="root")
+        )
+        store.update(
+            make_event("b", "task-received", name="myapp.b", parent_id="root", root_id="root")
+        )
+        # Trigger re-visit by putting b in same group as a
+        store._groups["grp"].extend(["a", "b"])
+        store._tasks["a"].group_id = "grp"
+        store._tasks["b"].group_id = "grp"
+        graph = store.get_graph("root")
+        assert graph is not None
+        uuids = {n["uuid"] for n in graph["nodes"]}
+        assert "a" in uuids and "b" in uuids
+
+    def test_find_root_detects_cycle(self):
+        store = TaskStore()
+        store.update(make_event("a", "task-received", name="myapp.a"))
+        store.update(make_event("b", "task-received", name="myapp.b", parent_id="a"))
+        # Manually create a cycle: a.parent_id -> b (which points to a)
+        store._tasks["a"].parent_id = "b"
+        # Should not infinite-loop; just return whichever it stops at
+        result = store._find_root("a")
+        assert result in ("a", "b")

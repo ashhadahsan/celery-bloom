@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 from celery_bloom.app import create_app
 from celery_bloom.task_store import TaskStore, store as global_store
 from celery_bloom.api import tasks as tasks_module
+from celery_bloom.api import workers as workers_module
 
 
 @pytest.fixture()
@@ -32,9 +33,19 @@ def seed_task(store: TaskStore, task_id: str, name: str, state: str = "SUCCESS")
 
     store.update({"uuid": task_id, "type": "task-received", "timestamp": time.time(), "name": name})
     if state == "SUCCESS":
-        store.update({"uuid": task_id, "type": "task-succeeded", "timestamp": time.time(), "result": 1})
+        store.update(
+            {"uuid": task_id, "type": "task-succeeded", "timestamp": time.time(), "result": 1}
+        )
     elif state == "FAILURE":
-        store.update({"uuid": task_id, "type": "task-failed", "timestamp": time.time(), "exception": "Err", "traceback": ""})
+        store.update(
+            {
+                "uuid": task_id,
+                "type": "task-failed",
+                "timestamp": time.time(),
+                "exception": "Err",
+                "traceback": "",
+            }
+        )
     elif state == "STARTED":
         store.update({"uuid": task_id, "type": "task-started", "timestamp": time.time()})
 
@@ -142,7 +153,9 @@ class TestTriggerTask:
         mock_app = MagicMock()
         mock_app.send_task.return_value = mock_result
         with patch("celery_bloom.api.tasks.celery_client.get_celery_app", return_value=mock_app):
-            resp = client.post("/api/tasks/trigger", json={"task_name": "myapp.add", "args": [1, 2]})
+            resp = client.post(
+                "/api/tasks/trigger", json={"task_name": "myapp.add", "args": [1, 2]}
+            )
         assert resp.status_code == 200
         data = resp.json()
         assert data["task_id"] == "new-task-uuid"
@@ -165,3 +178,18 @@ class TestRevokeTask:
             resp = client.post("/api/tasks/some-uuid/revoke", json={"terminate": True})
         assert resp.status_code == 200
         mock_revoke.assert_called_once_with("some-uuid", terminate=True)
+
+
+class TestWorkersEndpoint:
+    def test_list_workers(self, client):
+        mock_workers = [{"name": "celery@host", "status": "online"}]
+        with patch("celery_bloom.api.workers.celery_client.get_workers", return_value=mock_workers):
+            resp = client.get("/api/workers")
+        assert resp.status_code == 200
+        assert resp.json() == mock_workers
+
+    def test_empty_workers(self, client):
+        with patch("celery_bloom.api.workers.celery_client.get_workers", return_value=[]):
+            resp = client.get("/api/workers")
+        assert resp.status_code == 200
+        assert resp.json() == []
