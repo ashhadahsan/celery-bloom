@@ -1,5 +1,11 @@
 # celery-bloom
 
+[![CI](https://github.com/ashhadahsan/celery-bloom/actions/workflows/ci.yml/badge.svg)](https://github.com/ashhadahsan/celery-bloom/actions/workflows/ci.yml)
+[![PyPI version](https://img.shields.io/pypi/v/celery-bloom)](https://pypi.org/project/celery-bloom/)
+[![Python versions](https://img.shields.io/pypi/pyversions/celery-bloom)](https://pypi.org/project/celery-bloom/)
+[![PyPI downloads](https://img.shields.io/pypi/dm/celery-bloom)](https://pypi.org/project/celery-bloom/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 A modern, real-time monitoring UI for [Celery](https://docs.celeryq.dev/) — a drop-in replacement for Celery Flower with a clean dark UI, WebSocket-powered live updates, and rich task inspection.
 
 ![Dashboard](docs/screenshots/dashboard.png)
