@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+.env
+
+# Node
+ui/node_modules/
+ui/dist/
+
+# Built frontend (output of `npm run build` in ui/)
+celery_bloom/static/*
+!celery_bloom/static/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+*.swp
