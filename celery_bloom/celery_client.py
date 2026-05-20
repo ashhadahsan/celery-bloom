@@ -8,7 +8,6 @@ from celery import Celery
 
 from celery_bloom.config import settings
 
-
 _app: Celery | None = None
 
 
