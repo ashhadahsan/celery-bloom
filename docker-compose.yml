@@ -1,0 +1,67 @@
+services:
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  worker:
+    build: .
+    command: >
+      uv run celery -A example.tasks worker
+        --loglevel=info
+        --concurrency=4
+        -E
+    volumes:
+      - .:/app
+      - /app/.venv   # shadow host .venv with a container-local volume
+    working_dir: /app
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      - PYTHONUNBUFFERED=1
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - CELERY_BLOOM_SKIP_UI_BUILD=1
+
+  beat:
+    build: .
+    command: >
+      uv run celery -A example.tasks beat
+        --loglevel=info
+    volumes:
+      - .:/app
+      - /app/.venv
+    working_dir: /app
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      - PYTHONUNBUFFERED=1
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - CELERY_BLOOM_SKIP_UI_BUILD=1
+
+  bloom:
+    build: .
+    command: >
+      uv run celery-bloom
+        --broker redis://redis:6379/0
+        --result-backend redis://redis:6379/1
+        --host 0.0.0.0
+        --port 5556
+    ports:
+      - "5556:5556"
+    volumes:
+      - .:/app
+      - /app/.venv
+    working_dir: /app
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      - PYTHONUNBUFFERED=1
+      - CELERY_BLOOM_SKIP_UI_BUILD=1
