@@ -27,10 +27,33 @@ jobs:
       - name: mypy
         run: uv run mypy celery_bloom/
 
+  test:
+    name: Tests & coverage
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install dev dependencies
+        run: CELERY_BLOOM_SKIP_UI_BUILD=1 uv sync --extra dev
+
+      - name: Run tests
+        run: uv run pytest
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: coverage.xml
+          fail_ci_if_error: false
+
   build:
     name: Build wheel
     runs-on: ubuntu-latest
-    needs: lint
+    needs: test
     steps:
       - uses: actions/checkout@v4
 

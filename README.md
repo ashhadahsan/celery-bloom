@@ -1,6 +1,7 @@
 # celery-bloom
 
 [![CI](https://github.com/ashhadahsan/celery-bloom/actions/workflows/ci.yml/badge.svg)](https://github.com/ashhadahsan/celery-bloom/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/ashhadahsan/celery-bloom/branch/main/graph/badge.svg)](https://codecov.io/gh/ashhadahsan/celery-bloom)
 [![PyPI version](https://img.shields.io/pypi/v/celery-bloom)](https://pypi.org/project/celery-bloom/)
 [![Python versions](https://img.shields.io/pypi/pyversions/celery-bloom)](https://pypi.org/project/celery-bloom/)
 [![PyPI downloads](https://img.shields.io/pypi/dm/celery-bloom)](https://pypi.org/project/celery-bloom/)
